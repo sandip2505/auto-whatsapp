@@ -30,15 +30,16 @@ COPY package.json package-lock.json* ./
 COPY server/package.json server/package-lock.json* ./server/
 COPY client/package.json client/package-lock.json* ./client/
 
-# Install server and client dependencies
+# Install server (production only) and client (including devDependencies for Vite build)
 RUN npm --prefix server install --omit=dev && \
-    npm --prefix client install
+    npm --prefix client install --include=dev
 
 # Copy application source code
 COPY . .
 
-# Build Vite client bundle into client/dist
-RUN npm --prefix client run build
+# Build Vite client bundle into client/dist and remove client node_modules to keep image lean
+RUN npm --prefix client run build && \
+    rm -rf client/node_modules
 
 # Run SQLite schema migrations
 RUN npm --prefix server run db:migrate
