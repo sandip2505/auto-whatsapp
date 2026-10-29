@@ -70,9 +70,9 @@ class WhatsAppService extends EventEmitter {
           '--disable-default-apps',
           '--mute-audio',
           '--disable-notifications',
-          '--renderer-process-limit=1',
-          '--disable-features=Translate,BlinkGenPropertyTrees,AudioServiceOutOfProcess',
-          '--js-flags=--max-old-space-size=192'
+          '--blink-settings=imagesEnabled=false',
+          '--disable-software-rasterizer',
+          '--js-flags=--max-old-space-size=256'
         ]
       };
 
