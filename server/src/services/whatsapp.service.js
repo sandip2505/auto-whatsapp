@@ -65,12 +65,8 @@ class WhatsAppService extends EventEmitter {
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
-          '--no-zygote',
-          '--single-process',
           '--disable-gpu',
-          '--disable-extensions',
-          '--disable-software-rasterizer',
-          '--js-flags=--max-old-space-size=256'
+          '--disable-extensions'
         ]
       };
 
@@ -83,6 +79,11 @@ class WhatsAppService extends EventEmitter {
         authStrategy: new LocalAuth({
           dataPath: config.whatsappSessionPath
         }),
+        webVersionCache: {
+          type: 'remote',
+          remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html'
+        },
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
         puppeteer: puppeteerOptions
       });
 
@@ -129,8 +130,16 @@ class WhatsAppService extends EventEmitter {
       this.emit('status_change', { status: this.status, user: this.authenticatedUser });
     });
 
+    this.client.on('loading_screen', (percent, message) => {
+      logger.info('whatsapp', `WhatsApp synchronizing: ${percent}% - ${message}`);
+    });
+
     this.client.on('authenticated', () => {
-      logger.info('whatsapp', 'WhatsApp authentication successful.');
+      logger.info('whatsapp', 'WhatsApp authentication handshake successful. Synchronizing messages...');
+      this.status = WhatsAppStatus.CONNECTING;
+      this.qrCodeDataUrl = null;
+      this.qrRaw = null;
+      this.emit('status_change', { status: this.status });
     });
 
     this.client.on('auth_failure', (msg) => {
