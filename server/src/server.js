@@ -39,6 +39,7 @@ async function bootstrap() {
     server.listen(config.port, config.host, () => {
       logger.info('system', `Server listening on http://${config.host}:${config.port}`);
       logger.info('system', `API base url: http://${config.host}:${config.port}/api`);
+      setupKeepAlive();
     });
 
   } catch (err) {
@@ -47,9 +48,44 @@ async function bootstrap() {
   }
 }
 
+let keepAliveTimer = null;
+
+function setupKeepAlive() {
+  const targetHost = process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+  const isEnabled = process.env.KEEP_ALIVE === 'true' || Boolean(targetHost);
+
+  if (!isEnabled || !targetHost) {
+    return;
+  }
+
+  const pingUrl = `${targetHost.replace(/\/+$/, '')}/api/health`;
+  const intervalMinutes = parseInt(process.env.KEEP_ALIVE_INTERVAL_MINUTES || '10', 10);
+  const intervalMs = Math.max(1, intervalMinutes) * 60 * 1000;
+
+  logger.info('system', `Keep-alive background ping active for ${pingUrl} (every ${intervalMinutes}m). Server will stay awake when tab is closed.`);
+
+  keepAliveTimer = setInterval(async () => {
+    try {
+      const res = await fetch(pingUrl);
+      if (res.ok) {
+        logger.info('system', `Keep-alive ping acknowledged (HTTP ${res.status}). Server stays awake.`);
+      } else {
+        logger.warn('system', `Keep-alive ping received status ${res.status}`);
+      }
+    } catch (err) {
+      logger.warn('system', `Keep-alive ping request error: ${err.message}`);
+    }
+  }, intervalMs);
+}
+
 // Graceful shutdown handling
 async function shutdown(signal) {
   logger.info('system', `Received ${signal}. Performing graceful shutdown...`);
+
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
 
   // Stop scheduler
   try {

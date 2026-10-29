@@ -53,7 +53,9 @@ export async function logout(req, res, next) {
 export async function reconnect(req, res, next) {
   try {
     logger.info('api', 'User requested WhatsApp reconnection.');
-    await whatsappService.initialize();
+    whatsappService.reconnect().catch(err => {
+      logger.error('whatsapp', `Reconnection error: ${err.message}`);
+    });
     res.json({
       success: true,
       message: 'WhatsApp reconnection initiated.'

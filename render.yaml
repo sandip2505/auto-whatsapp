@@ -1,0 +1,32 @@
+# ==============================================================================
+# Render Blueprint Specification for WhatsApp Message Scheduler
+# https://render.com/docs/blueprint-spec
+# ==============================================================================
+services:
+  - type: web
+    name: whatsapp-scheduler
+    runtime: docker
+    plan: free
+    dockerfilePath: Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: HOST
+        value: 0.0.0.0
+      - key: NODE_ENV
+        value: production
+      - key: DEFAULT_TIMEZONE
+        value: Asia/Kolkata
+      - key: DEFAULT_COUNTRY_CODE
+        value: "+91"
+      - key: MISSED_JOB_POLICY
+        value: skip
+      - key: PUPPETEER_HEADLESS
+        value: "true"
+      - key: WHATSAPP_MOCK
+        value: "false"
+      - key: KEEP_ALIVE
+        value: "true"
+      - key: KEEP_ALIVE_INTERVAL_MINUTES
+        value: "10"

@@ -11,9 +11,13 @@ build/
 data/whatsapp_session/
 data/*.db
 data/*.db-journal
+data/*.db-shm
+data/*.db-wal
 data/*.sqlite
 data/*.sqlite-journal
 *.sqlite
+.wwebjs_cache/
+**/.wwebjs_cache/
 
 # Environment variables
 .env

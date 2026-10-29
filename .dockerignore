@@ -1,0 +1,11 @@
+node_modules
+server/node_modules
+client/node_modules
+client/dist
+data/whatsapp_session
+data/*.db*
+.env
+.git
+.github
+.system_generated
+*.log

@@ -54,6 +54,9 @@ class WhatsAppService extends EventEmitter {
         fs.mkdirSync(config.whatsappSessionPath, { recursive: true });
       }
 
+      // Clean stale chromium locks if a previous process died abruptly
+      this._cleanStaleLocks();
+
       const puppeteerOptions = {
         headless: config.puppeteerHeadless ? 'new' : false,
         args: [
@@ -64,12 +67,16 @@ class WhatsAppService extends EventEmitter {
           '--no-first-run',
           '--no-zygote',
           '--single-process',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--disable-extensions',
+          '--disable-software-rasterizer',
+          '--js-flags=--max-old-space-size=256'
         ]
       };
 
-      if (config.puppeteerExecutablePath) {
-        puppeteerOptions.executablePath = config.puppeteerExecutablePath;
+      const resolvedExecutable = this._resolveChromiumPath();
+      if (resolvedExecutable) {
+        puppeteerOptions.executablePath = resolvedExecutable;
       }
 
       this.client = new Client({
@@ -352,6 +359,68 @@ class WhatsAppService extends EventEmitter {
   }
 
   /**
+   * Cleans stale Chromium lock files if the previous process crashed.
+   */
+  _cleanStaleLocks() {
+    try {
+      const sessionDir = path.join(config.whatsappSessionPath, 'session');
+      if (fs.existsSync(sessionDir)) {
+        const lockNames = ['lockfile', 'SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+        for (const name of lockNames) {
+          const lockPath = path.join(sessionDir, name);
+          if (fs.existsSync(lockPath)) {
+            try {
+              fs.rmSync(lockPath, { force: true });
+              logger.info('whatsapp', `Removed stale Chromium lockfile: ${name}`);
+            } catch (err) {
+              logger.warn('whatsapp', `Could not remove stale lockfile ${name}: ${err.message}`);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore directory read errors
+    }
+  }
+
+  /**
+   * Resolves Chromium executable path, checking environment variable or system binaries.
+   */
+  _resolveChromiumPath() {
+    if (config.puppeteerExecutablePath) {
+      return config.puppeteerExecutablePath;
+    }
+    if (process.platform === 'linux') {
+      const candidates = [
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome'
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          return p;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Reconnects WhatsApp client safely by clearing stale state and restarting.
+   */
+  async reconnect() {
+    logger.info('whatsapp', 'Reconnecting WhatsApp client...');
+    await this.destroy();
+    this.status = WhatsAppStatus.DISCONNECTED;
+    this.isInitializing = false;
+    this.qrCodeDataUrl = null;
+    this.qrRaw = null;
+    this.lastError = null;
+    return this.initialize();
+  }
+
+  /**
    * Safely terminates client on app shutdown.
    */
   async destroy() {
@@ -363,6 +432,7 @@ class WhatsAppService extends EventEmitter {
       }
       this.client = null;
     }
+    this._cleanStaleLocks();
   }
 }
 

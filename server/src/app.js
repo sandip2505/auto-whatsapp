@@ -23,19 +23,27 @@ export function createApp() {
     next();
   });
 
-  // CORS - Restrict origin strictly to local client
+  // CORS configuration
   const allowedOrigins = [
     config.clientUrl,
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:5000',
     'http://127.0.0.1:5000'
-  ];
+  ].filter(Boolean);
 
   app.use(cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (e.g. curl, tests, mobile/desktop local apps)
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+      // Allow known local origins and configured clientUrl
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow all Render-hosted domains (*.onrender.com)
+      if (origin.endsWith('.onrender.com') || origin.endsWith('.render.com')) {
+        return callback(null, true);
+      }
+      // In production, allow all origins since the API may be called from frontend or reverse proxy
+      if (config.nodeEnv === 'production') {
         return callback(null, true);
       }
       return callback(new Error(`CORS blocked request from origin ${origin}`));
