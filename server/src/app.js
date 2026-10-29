@@ -14,6 +14,9 @@ const __dirname = path.dirname(__filename);
 export function createApp() {
   const app = express();
 
+  // Trust proxy for Render / Cloud load balancers (fixes express-rate-limit X-Forwarded-For warning)
+  app.set('trust proxy', 1);
+
   // Basic security response headers
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');

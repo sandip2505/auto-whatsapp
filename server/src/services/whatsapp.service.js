@@ -66,7 +66,13 @@ class WhatsAppService extends EventEmitter {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--disable-gpu',
-          '--disable-extensions'
+          '--disable-extensions',
+          '--disable-default-apps',
+          '--mute-audio',
+          '--disable-notifications',
+          '--renderer-process-limit=1',
+          '--disable-features=Translate,BlinkGenPropertyTrees,AudioServiceOutOfProcess',
+          '--js-flags=--max-old-space-size=192'
         ]
       };
 
@@ -94,6 +100,31 @@ class WhatsAppService extends EventEmitter {
       this.lastError = err.message;
       this.isInitializing = false;
       logger.error('whatsapp', `Failed to initialize WhatsApp client: ${err.message}`);
+
+      // Auto-heal corrupted sessions (e.g. from container restart during sync)
+      const isCorruptedSession = err.message && (
+        err.message.includes('Socket') ||
+        err.message.includes('Evaluation failed') ||
+        err.message.includes('Session closed') ||
+        err.message.includes('Navigating frame was detached') ||
+        err.message.includes('Execution context was destroyed')
+      );
+
+      if (isCorruptedSession) {
+        logger.warn('whatsapp', 'Corrupted session detected. Automatically cleaning session directory and resetting...');
+        try {
+          if (fs.existsSync(config.whatsappSessionPath)) {
+            fs.rmSync(config.whatsappSessionPath, { recursive: true, force: true });
+          }
+        } catch (cleanErr) {
+          logger.warn('whatsapp', `Failed to clean corrupted session: ${cleanErr.message}`);
+        }
+        // Automatically attempt a clean initialization in 3 seconds
+        setTimeout(() => {
+          this.initialize().catch(() => {});
+        }, 3000);
+      }
+
       this.emit('status_change', { status: this.status, error: this.lastError });
     }
   }
