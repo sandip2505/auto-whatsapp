@@ -3,16 +3,13 @@
 # Includes Node.js 20, system Chromium, necessary C++ dependencies, and dumb-init
 # ==============================================================================
 
-FROM node:20-bullseye-slim
+FROM node:20-bookworm-slim
 
 # Install system Chromium, necessary rendering libraries, and dumb-init
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     fonts-liberation \
-    fonts-ipafont-gothic \
     fonts-wqy-zenhei \
-    fonts-thai-tlwg \
-    fonts-kacst \
     fonts-freefont-ttf \
     ca-certificates \
     dumb-init \
